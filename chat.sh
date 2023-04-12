@@ -12,13 +12,12 @@ while line=$(cat); do
     response=''
     echo -ne "$RED""GPT: $NC"
 
-    curl --no-buffer -s -X POST -H 'Content-Type: application/json' -H 'Accept: text/event-stream' -H 'Authorization: Bearer '"$OPENAI_API_KEY" -d '{"model": "'"${CHAT_MODEL_NAME:="gpt-4"}"'", "messages": '"$messages"', "stream": true}' https://api.openai.com/v1/chat/completions > >(while read -r resp; do
+    response=$(curl --no-buffer -s -X POST -H 'Content-Type: application/json' -H 'Accept: text/event-stream' -H 'Authorization: Bearer '"$OPENAI_API_KEY" -d '{"model": "'"${CHAT_MODEL_NAME:="gpt-4"}"'", "messages": '"$messages"', "stream": true}' https://api.openai.com/v1/chat/completions > >(while read -r resp; do
         if [[ $resp == *"delta\":{\"content"* ]]; then
-		content="$(echo -E "$resp" | cut -c 7- | jq '.choices[].delta.content' | sed "s/^\"\|\"$//g")"
-            echo -ne "$content"
-            response+=$content
+		content="$(echo -E "$resp" | cut -c 7- | jq '.choices[].delta.content' | jq -r)"
+	    echo -ne "$content"
         fi
-    done)
+    done) | tee /dev/tty)
     messages=$(echo "$messages" | jq -c '. += [{"role": "assistant", "content": '"$(echo "$response" | jq -sR .)"'}]')
     echo -ne "\n$GREEN""User: $NC"
 done
